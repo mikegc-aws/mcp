@@ -33,6 +33,74 @@ def lambda_handler(event, context):
     return mcp.handle_request(event, context)
 ```
 
+## Durable Task Tools (Long-Running MCP Tools)
+
+For tools that need more than 15 minutes, checkpoint progress, or wait for external input, use `task_tool` with [AWS Lambda Durable Functions](https://docs.aws.amazon.com/lambda/latest/dg/durable-functions.html).
+
+**Requirements:**
+- Python 3.13 runtime (durable SDK pre-installed)
+- Lambda configured with DurableConfig enabled
+
+```python
+from awslabs.mcp_lambda_handler import MCPLambdaHandler, create_durable_handler, task_tool
+
+mcp = MCPLambdaHandler(name="my-server", version="1.0.0")
+
+# Regular tool — runs inline
+@mcp.tool()
+def quick_lookup(query: str) -> str:
+    """Fast lookup."""
+    return cache.get(query)
+
+# Task tool (sync) — blocks up to 15 min, checkpointed
+@task_tool(mcp)
+def analyze_dataset(dataset_url: str, context) -> str:
+    """Analyze a large dataset with checkpointed steps.
+
+    Args:
+        dataset_url: URL of the dataset
+    """
+    from aws_durable_execution_sdk_python import durable_step
+    from aws_durable_execution_sdk_python.types import StepContext
+
+    @durable_step
+    def download(ctx: StepContext):
+        return fetch(dataset_url)
+
+    @durable_step
+    def analyze(ctx: StepContext, data):
+        return summarize(data)
+
+    data = context.step(download())
+    return context.step(analyze(data))
+
+# Task tool (async) — returns immediately, client polls for result
+@task_tool(mcp, invoke_mode='async')
+def train_model(config: str, context) -> str:
+    """Train a model (may take hours).
+
+    Args:
+        config: Training configuration JSON
+    """
+    # ... long workflow with waits, callbacks, etc.
+    return model_id
+
+# Single Lambda handler entry point
+handler = create_durable_handler(mcp)
+```
+
+**How it works:**
+- `task_tool` registers the tool in `tools/list` like any other tool (the `context` parameter is excluded from the schema)
+- On `tools/call`, the handler self-invokes the Lambda as a durable execution
+- **Sync mode** (default): waits for the result and returns it inline
+- **Async mode**: returns a task handle immediately; client polls via `tasks/get` JSON-RPC method or the auto-registered `get_task_status` tool
+
+**Environment variables:**
+- `MCP_TASK_FUNCTION_NAME` — Qualified ARN for self-invocation (defaults to current function)
+- `MCP_TASK_TABLE` — DynamoDB table for async task state (defaults to `MCP_SESSION_TABLE`)
+
+See [`examples/durable_mcp_server.py`](examples/durable_mcp_server.py) for a complete example with SAM template.
+
 ## Session Management
 
 The library provides flexible session management with built-in support for DynamoDB and the ability to create custom session backends. You can use the default stateless (NoOp) session store, or configure a DynamoDB-backed store for persistent sessions.

@@ -16,20 +16,23 @@
 
 import json
 import pytest
-from unittest.mock import MagicMock, patch, ANY
 from awslabs.mcp_lambda_handler import MCPLambdaHandler
 from awslabs.mcp_lambda_handler.durable import (
-    task_tool,
+    _get_type_schema,
+    _is_durable_context_type,
+    _read_task_record,
+    _task_tools,
+    _update_task_record,
+    _write_task_record,
     create_durable_handler,
     handle_tasks_get,
-    _task_tools,
-    _is_durable_context_type,
-    _get_type_schema,
-    _status_tool_registered,
+    task_tool,
 )
+from unittest.mock import MagicMock, patch
 
 
 # --- Helpers ---
+
 
 class FakeDurableContext:
     """Fake DurableContext for testing."""
@@ -55,6 +58,7 @@ FakeDurableContext.__name__ = 'DurableContext'
 def _reset_module_state():
     """Reset module-level state between tests."""
     import awslabs.mcp_lambda_handler.durable as durable_mod
+
     _task_tools.clear()
     durable_mod._status_tool_registered = False
 
@@ -68,6 +72,7 @@ def reset_state():
 
 
 # --- Test _is_durable_context_type ---
+
 
 class TestIsDurableContextType:
     def test_recognizes_class_with_name(self):
@@ -87,6 +92,7 @@ class TestIsDurableContextType:
 
 # --- Test schema generation ---
 
+
 class TestGetTypeSchema:
     def test_basic_types(self):
         assert _get_type_schema(str) == {'type': 'string'}
@@ -96,6 +102,7 @@ class TestGetTypeSchema:
 
 
 # --- Test task_tool decorator ---
+
 
 class TestTaskToolDecorator:
     def test_registers_tool_schema(self):
@@ -183,6 +190,7 @@ class TestTaskToolDecorator:
 
 # --- Test sync dispatch ---
 
+
 class TestSyncDispatch:
     @patch('boto3.client')
     def test_sync_invokes_lambda_and_returns_result(self, mock_boto_client):
@@ -251,6 +259,7 @@ class TestSyncDispatch:
 
 # --- Test async dispatch ---
 
+
 class TestAsyncDispatch:
     @patch('awslabs.mcp_lambda_handler.durable._write_task_record')
     @patch('boto3.client')
@@ -285,6 +294,7 @@ class TestAsyncDispatch:
 
 # --- Test create_durable_handler ---
 
+
 class TestCreateDurableHandler:
     def test_routes_mcp_requests_to_handler(self):
         mcp = MCPLambdaHandler('test')
@@ -299,12 +309,14 @@ class TestCreateDurableHandler:
         event = {
             'httpMethod': 'POST',
             'headers': {'content-type': 'application/json'},
-            'body': json.dumps({
-                'jsonrpc': '2.0',
-                'id': '1',
-                'method': 'tools/list',
-                'params': {},
-            }),
+            'body': json.dumps(
+                {
+                    'jsonrpc': '2.0',
+                    'id': '1',
+                    'method': 'tools/list',
+                    'params': {},
+                }
+            ),
         }
 
         result = handler(event, None)
@@ -385,6 +397,7 @@ class TestCreateDurableHandler:
 
 # --- Test handle_tasks_get ---
 
+
 class TestHandleTasksGet:
     @patch('awslabs.mcp_lambda_handler.durable._read_task_record')
     def test_returns_task_record(self, mock_read):
@@ -415,6 +428,7 @@ class TestHandleTasksGet:
 
 # --- Test tasks/get JSON-RPC method ---
 
+
 class TestTasksGetMethod:
     @patch('awslabs.mcp_lambda_handler.durable._read_task_record')
     def test_tasks_get_via_handle_request(self, mock_read):
@@ -428,12 +442,14 @@ class TestTasksGetMethod:
         event = {
             'httpMethod': 'POST',
             'headers': {'content-type': 'application/json'},
-            'body': json.dumps({
-                'jsonrpc': '2.0',
-                'id': '1',
-                'method': 'tasks/get',
-                'params': {'taskId': 'task-abc'},
-            }),
+            'body': json.dumps(
+                {
+                    'jsonrpc': '2.0',
+                    'id': '1',
+                    'method': 'tasks/get',
+                    'params': {'taskId': 'task-abc'},
+                }
+            ),
         }
 
         result = mcp.handle_request(event, None)
@@ -448,12 +464,14 @@ class TestTasksGetMethod:
         event = {
             'httpMethod': 'POST',
             'headers': {'content-type': 'application/json'},
-            'body': json.dumps({
-                'jsonrpc': '2.0',
-                'id': '1',
-                'method': 'tasks/get',
-                'params': {},
-            }),
+            'body': json.dumps(
+                {
+                    'jsonrpc': '2.0',
+                    'id': '1',
+                    'method': 'tasks/get',
+                    'params': {},
+                }
+            ),
         }
 
         result = mcp.handle_request(event, None)
@@ -463,6 +481,7 @@ class TestTasksGetMethod:
 
 
 # --- Test async task completion writes record ---
+
 
 class TestAsyncTaskCompletion:
     @patch('awslabs.mcp_lambda_handler.durable._update_task_record')
@@ -525,6 +544,7 @@ class TestAsyncTaskCompletion:
 
 # --- Test tools/list includes task tools ---
 
+
 class TestToolsListIncludesTaskTools:
     def test_task_tools_appear_in_tools_list(self):
         mcp = MCPLambdaHandler('test')
@@ -546,12 +566,14 @@ class TestToolsListIncludesTaskTools:
         event = {
             'httpMethod': 'POST',
             'headers': {'content-type': 'application/json'},
-            'body': json.dumps({
-                'jsonrpc': '2.0',
-                'id': '1',
-                'method': 'tools/list',
-                'params': {},
-            }),
+            'body': json.dumps(
+                {
+                    'jsonrpc': '2.0',
+                    'id': '1',
+                    'method': 'tools/list',
+                    'params': {},
+                }
+            ),
         }
 
         result = mcp.handle_request(event, None)
@@ -559,3 +581,231 @@ class TestToolsListIncludesTaskTools:
         tool_names = [t['name'] for t in body['result']['tools']]
         assert 'regular_tool' in tool_names
         assert 'slow_tool' in tool_names
+
+
+# --- Test edge cases ---
+
+
+class TestEdgeCases:
+    def test_task_tool_without_context_param(self):
+        mcp = MCPLambdaHandler('test')
+
+        @task_tool(mcp)
+        def no_context_tool(x: str) -> str:
+            """No context param.
+
+            Args:
+                x: Input value
+            """
+            return f'got {x}'
+
+        assert 'no_context_tool' in mcp.tools
+        schema = mcp.tools['no_context_tool']
+        assert 'x' in schema['inputSchema']['properties']
+        assert schema['inputSchema']['required'] == ['x']
+
+    def test_task_tool_without_context_executes(self):
+        mcp = MCPLambdaHandler('test')
+
+        @task_tool(mcp)
+        def no_context_tool(x: str) -> str:
+            """No context.
+
+            Args:
+                x: Input
+            """
+            return f'got {x}'
+
+        handler = create_durable_handler(mcp)
+        event = {
+            '_mcp_task_dispatch': {
+                'tool_name': 'no_context_tool',
+                'arguments': {'x': 'hello'},
+                'task_id': 'task-nc',
+            }
+        }
+
+        result = handler(event, FakeDurableContext())
+        assert result == 'got hello'
+
+    def test_task_tool_no_args(self):
+        mcp = MCPLambdaHandler('test')
+
+        @task_tool(mcp)
+        def no_args_tool(context: FakeDurableContext) -> str:
+            """Tool with no user arguments."""
+            return 'done'
+
+        schema = mcp.tools['no_args_tool']
+        assert schema['inputSchema']['properties'] == {}
+        assert schema['inputSchema']['required'] == []
+
+    def test_import_without_durable_sdk(self):
+        from awslabs.mcp_lambda_handler import durable
+
+        assert hasattr(durable, 'task_tool')
+        assert hasattr(durable, 'create_durable_handler')
+
+    def test_get_self_function_name_from_env(self, monkeypatch):
+        from awslabs.mcp_lambda_handler.durable import _get_self_function_name
+
+        monkeypatch.setenv('MCP_TASK_FUNCTION_NAME', 'my-custom-func:prod')
+        assert _get_self_function_name() == 'my-custom-func:prod'
+
+    def test_get_self_function_name_from_lambda_env(self, monkeypatch):
+        from awslabs.mcp_lambda_handler.durable import _get_self_function_name
+
+        monkeypatch.delenv('MCP_TASK_FUNCTION_NAME', raising=False)
+        monkeypatch.setenv('AWS_LAMBDA_FUNCTION_NAME', 'my-func')
+        monkeypatch.setenv('AWS_LAMBDA_FUNCTION_VERSION', '3')
+        assert _get_self_function_name() == 'my-func:3'
+
+
+# --- Test get_task_status bridging tool ---
+
+
+class TestGetTaskStatusTool:
+    @patch('awslabs.mcp_lambda_handler.durable._read_task_record')
+    def test_get_task_status_via_tools_call(self, mock_read):
+        mcp = MCPLambdaHandler('test')
+
+        @task_tool(mcp, invoke_mode='async')
+        def some_task(data: str, context: FakeDurableContext) -> str:
+            """Task.
+
+            Args:
+                data: Input
+            """
+            return data
+
+        mock_read.return_value = {
+            'taskId': 'task-poll',
+            'status': 'SUCCEEDED',
+            'result': '"all done"',
+            'toolName': 'some_task',
+        }
+
+        event = {
+            'httpMethod': 'POST',
+            'headers': {'content-type': 'application/json'},
+            'body': json.dumps(
+                {
+                    'jsonrpc': '2.0',
+                    'id': '2',
+                    'method': 'tools/call',
+                    'params': {
+                        'name': 'get_task_status',
+                        'arguments': {'task_id': 'task-poll'},
+                    },
+                }
+            ),
+        }
+
+        result = mcp.handle_request(event, None)
+        assert result['statusCode'] == 200
+        body = json.loads(result['body'])
+        content_text = body['result']['content'][0]['text']
+        parsed = json.loads(content_text)
+        assert parsed['status'] == 'SUCCEEDED'
+        assert parsed['taskId'] == 'task-poll'
+
+    @patch('awslabs.mcp_lambda_handler.durable._read_task_record')
+    def test_get_task_status_not_found(self, mock_read):
+        mcp = MCPLambdaHandler('test')
+
+        @task_tool(mcp, invoke_mode='async')
+        def some_task(data: str, context: FakeDurableContext) -> str:
+            """Task.
+
+            Args:
+                data: Input
+            """
+            return data
+
+        mock_read.return_value = None
+
+        event = {
+            'httpMethod': 'POST',
+            'headers': {'content-type': 'application/json'},
+            'body': json.dumps(
+                {
+                    'jsonrpc': '2.0',
+                    'id': '3',
+                    'method': 'tools/call',
+                    'params': {
+                        'name': 'get_task_status',
+                        'arguments': {'task_id': 'nonexistent'},
+                    },
+                }
+            ),
+        }
+
+        result = mcp.handle_request(event, None)
+        assert result['statusCode'] == 200
+        body = json.loads(result['body'])
+        content_text = body['result']['content'][0]['text']
+        parsed = json.loads(content_text)
+        assert 'error' in parsed
+
+
+# --- Test DynamoDB task record operations with moto ---
+
+
+class TestDynamoDBTaskRecords:
+    @pytest.fixture
+    def task_table(self, monkeypatch):
+        """Create a mocked DynamoDB table for task records."""
+        import boto3
+        from moto import mock_aws
+
+        with mock_aws():
+            monkeypatch.setenv('MCP_TASK_TABLE', 'test_tasks')
+            dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+            dynamodb.create_table(
+                TableName='test_tasks',
+                KeySchema=[{'AttributeName': 'session_id', 'KeyType': 'HASH'}],
+                AttributeDefinitions=[{'AttributeName': 'session_id', 'AttributeType': 'S'}],
+                BillingMode='PAY_PER_REQUEST',
+            )
+            yield dynamodb
+
+    def test_write_and_read_task_record(self, task_table, monkeypatch):
+        monkeypatch.setenv('AWS_DEFAULT_REGION', 'us-east-1')
+        mcp = MCPLambdaHandler('test')
+
+        _write_task_record(mcp, 'task-w1', 'my_tool', 'RUNNING')
+        record = _read_task_record(mcp, 'task-w1')
+
+        assert record is not None
+        assert record['taskId'] == 'task-w1'
+        assert record['status'] == 'RUNNING'
+        assert record['toolName'] == 'my_tool'
+
+    def test_update_task_record(self, task_table, monkeypatch):
+        monkeypatch.setenv('AWS_DEFAULT_REGION', 'us-east-1')
+        mcp = MCPLambdaHandler('test')
+
+        _write_task_record(mcp, 'task-u1', 'my_tool', 'RUNNING')
+        _update_task_record('task-u1', 'SUCCEEDED', result='"done"')
+
+        record = _read_task_record(mcp, 'task-u1')
+        assert record['status'] == 'SUCCEEDED'
+        assert record['result'] == '"done"'
+
+    def test_update_task_record_with_error(self, task_table, monkeypatch):
+        monkeypatch.setenv('AWS_DEFAULT_REGION', 'us-east-1')
+        mcp = MCPLambdaHandler('test')
+
+        _write_task_record(mcp, 'task-e1', 'my_tool', 'RUNNING')
+        _update_task_record('task-e1', 'FAILED', error='something broke')
+
+        record = _read_task_record(mcp, 'task-e1')
+        assert record['status'] == 'FAILED'
+        assert record['error'] == 'something broke'
+
+    def test_read_nonexistent_task(self, task_table, monkeypatch):
+        monkeypatch.setenv('AWS_DEFAULT_REGION', 'us-east-1')
+        mcp = MCPLambdaHandler('test')
+
+        record = _read_task_record(mcp, 'does-not-exist')
+        assert record is None

@@ -28,7 +28,17 @@ import os
 import time
 import uuid
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, get_args, get_origin, get_type_hints
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Union,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -215,11 +225,13 @@ def task_tool(mcp, *, function_name: Optional[str] = None, invoke_mode: str = 's
                     Payload=json.dumps(payload),
                 )
 
-                return json.dumps({
-                    'taskId': task_id,
-                    'status': 'RUNNING',
-                    'message': f'Task {tool_name} started. Use tasks/get or get_task_status to poll.',
-                })
+                return json.dumps(
+                    {
+                        'taskId': task_id,
+                        'status': 'RUNNING',
+                        'message': f'Task {tool_name} started. Use tasks/get or get_task_status to poll.',
+                    }
+                )
 
         mcp.tool_implementations[tool_name] = dispatch
 
@@ -275,13 +287,17 @@ def _ensure_status_tool_registered(mcp):
     mcp.tool_implementations['get_task_status'] = get_task_status_impl
 
 
-def _write_task_record(mcp, task_id: str, tool_name: str, status: str, result: Any = None, error: Any = None):
+def _write_task_record(
+    mcp, task_id: str, tool_name: str, status: str, result: Any = None, error: Any = None
+):
     """Write a task record to the task store."""
     import boto3
     from botocore.config import Config
 
-    table_name = os.environ.get('MCP_TASK_TABLE', os.environ.get('MCP_SESSION_TABLE', 'mcp_sessions'))
-    config = Config(user_agent_extra=f'md/awslabs#mcp#mcp-lambda-handler#durable')
+    table_name = os.environ.get(
+        'MCP_TASK_TABLE', os.environ.get('MCP_SESSION_TABLE', 'mcp_sessions')
+    )
+    config = Config(user_agent_extra='md/awslabs#mcp#mcp-lambda-handler#durable')
     dynamodb = boto3.resource('dynamodb', config=config)
     table = dynamodb.Table(table_name)
 
@@ -307,8 +323,10 @@ def _update_task_record(task_id: str, status: str, result: Any = None, error: An
     import boto3
     from botocore.config import Config
 
-    table_name = os.environ.get('MCP_TASK_TABLE', os.environ.get('MCP_SESSION_TABLE', 'mcp_sessions'))
-    config = Config(user_agent_extra=f'md/awslabs#mcp#mcp-lambda-handler#durable')
+    table_name = os.environ.get(
+        'MCP_TASK_TABLE', os.environ.get('MCP_SESSION_TABLE', 'mcp_sessions')
+    )
+    config = Config(user_agent_extra='md/awslabs#mcp#mcp-lambda-handler#durable')
     dynamodb = boto3.resource('dynamodb', config=config)
     table = dynamodb.Table(table_name)
 
@@ -338,8 +356,10 @@ def _read_task_record(mcp, task_id: str) -> Optional[Dict[str, Any]]:
     import boto3
     from botocore.config import Config
 
-    table_name = os.environ.get('MCP_TASK_TABLE', os.environ.get('MCP_SESSION_TABLE', 'mcp_sessions'))
-    config = Config(user_agent_extra=f'md/awslabs#mcp#mcp-lambda-handler#durable')
+    table_name = os.environ.get(
+        'MCP_TASK_TABLE', os.environ.get('MCP_SESSION_TABLE', 'mcp_sessions')
+    )
+    config = Config(user_agent_extra='md/awslabs#mcp#mcp-lambda-handler#durable')
     dynamodb = boto3.resource('dynamodb', config=config)
     table = dynamodb.Table(table_name)
 
