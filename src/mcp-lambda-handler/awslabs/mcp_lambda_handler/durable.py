@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 _DURABLE_CONTEXT_TYPE_NAMES = frozenset({'DurableContext'})
 
-_task_tools: Dict[str, Callable] = {}
+_task_tools: Dict[str, Any] = {}
 
 _status_tool_registered = False
 
@@ -243,7 +243,7 @@ def task_tool(mcp, *, function_name: Optional[str] = None, invoke_mode: str = 's
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
 
-        wrapper._task_tool_meta = {
+        wrapper._task_tool_meta = {  # pyright: ignore [reportAttributeAccessIssue]
             'tool_name': tool_name,
             'context_param': context_param_name,
             'invoke_mode': invoke_mode,
@@ -299,7 +299,7 @@ def _write_task_record(
     )
     config = Config(user_agent_extra='md/awslabs#mcp#mcp-lambda-handler#durable')
     dynamodb = boto3.resource('dynamodb', config=config)
-    table = dynamodb.Table(table_name)
+    table = dynamodb.Table(table_name)  # pyright: ignore [reportAttributeAccessIssue]
 
     item = {
         'session_id': f'task#{task_id}',
@@ -328,7 +328,7 @@ def _update_task_record(task_id: str, status: str, result: Any = None, error: An
     )
     config = Config(user_agent_extra='md/awslabs#mcp#mcp-lambda-handler#durable')
     dynamodb = boto3.resource('dynamodb', config=config)
-    table = dynamodb.Table(table_name)
+    table = dynamodb.Table(table_name)  # pyright: ignore [reportAttributeAccessIssue]
 
     update_expr = 'SET #status = :status, updated_at = :updated_at'
     expr_values = {':status': status, ':updated_at': int(time.time())}
@@ -361,7 +361,7 @@ def _read_task_record(mcp, task_id: str) -> Optional[Dict[str, Any]]:
     )
     config = Config(user_agent_extra='md/awslabs#mcp#mcp-lambda-handler#durable')
     dynamodb = boto3.resource('dynamodb', config=config)
-    table = dynamodb.Table(table_name)
+    table = dynamodb.Table(table_name)  # pyright: ignore [reportAttributeAccessIssue]
 
     response = table.get_item(Key={'session_id': f'task#{task_id}'})
     item = response.get('Item')

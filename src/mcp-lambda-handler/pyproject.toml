@@ -90,6 +90,7 @@ no-sections = true
 "**/*.ipynb" = ["F704"]
 "awslabs/mcp_lambda_handler/types.py" = ["D101", "D102"]
 "tests/**" = ["D101", "D102", "D103", "D417"]
+"examples/**" = ["D417"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

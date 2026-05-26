@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false, reportCallIssue=false
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -111,10 +112,10 @@ def analyze_dataset(dataset_key: str, context) -> str:
     @durable_step
     def generate_summary(ctx: StepContext, stats: dict) -> str:
         return (
-            f"Dataset: {dataset_key}\n"
-            f"Rows: {stats['rows']}\n"
-            f"Columns: {stats['columns']}\n"
-            f"Size: {stats['size_bytes']} bytes"
+            f'Dataset: {dataset_key}\n'
+            f'Rows: {stats["rows"]}\n'
+            f'Columns: {stats["columns"]}\n'
+            f'Size: {stats["size_bytes"]} bytes'
         )
 
     data = context.step(download())

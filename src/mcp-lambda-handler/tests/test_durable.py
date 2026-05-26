@@ -183,9 +183,10 @@ class TestTaskToolDecorator:
         assert my_task.__name__ == 'my_task'
         assert my_task.__doc__ == 'Original docstring.'
         assert hasattr(my_task, '_task_tool_meta')
-        assert my_task._task_tool_meta['tool_name'] == 'my_task'
-        assert my_task._task_tool_meta['context_param'] == 'context'
-        assert my_task._task_tool_meta['invoke_mode'] == 'sync'
+        meta = my_task._task_tool_meta  # pyright: ignore [reportAttributeAccessIssue]
+        assert meta['tool_name'] == 'my_task'
+        assert meta['context_param'] == 'context'
+        assert meta['invoke_mode'] == 'sync'
 
 
 # --- Test sync dispatch ---
@@ -409,6 +410,7 @@ class TestHandleTasksGet:
         }
 
         result = handle_tasks_get(mcp, {'taskId': 'task-123'})
+        assert result is not None
         assert result['status'] == 'SUCCEEDED'
         assert result['taskId'] == 'task-123'
 
@@ -418,6 +420,7 @@ class TestHandleTasksGet:
         mock_read.return_value = None
 
         result = handle_tasks_get(mcp, {'taskId': 'no-such-task'})
+        assert result is not None
         assert 'error' in result
 
     def test_returns_none_for_missing_params(self):
@@ -761,7 +764,7 @@ class TestDynamoDBTaskRecords:
         with mock_aws():
             monkeypatch.setenv('MCP_TASK_TABLE', 'test_tasks')
             dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-            dynamodb.create_table(
+            dynamodb.create_table(  # pyright: ignore [reportAttributeAccessIssue]
                 TableName='test_tasks',
                 KeySchema=[{'AttributeName': 'session_id', 'KeyType': 'HASH'}],
                 AttributeDefinitions=[{'AttributeName': 'session_id', 'AttributeType': 'S'}],
@@ -789,6 +792,7 @@ class TestDynamoDBTaskRecords:
         _update_task_record('task-u1', 'SUCCEEDED', result='"done"')
 
         record = _read_task_record(mcp, 'task-u1')
+        assert record is not None
         assert record['status'] == 'SUCCEEDED'
         assert record['result'] == '"done"'
 
@@ -800,6 +804,7 @@ class TestDynamoDBTaskRecords:
         _update_task_record('task-e1', 'FAILED', error='something broke')
 
         record = _read_task_record(mcp, 'task-e1')
+        assert record is not None
         assert record['status'] == 'FAILED'
         assert record['error'] == 'something broke'
 
