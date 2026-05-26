@@ -594,6 +594,18 @@ class MCPLambdaHandler:
                         session_id,
                     )
 
+            # Handle tasks/get (draft MCP spec — long-running task polling)
+            if request.method == 'tasks/get':
+                from awslabs.mcp_lambda_handler.durable import handle_tasks_get
+
+                result = handle_tasks_get(self, request.params)
+                if result is None:
+                    return self._create_error_response(
+                        -32602, 'Missing required parameter: taskId',
+                        request.id, session_id=session_id,
+                    )
+                return self._create_success_response(result, request.id, session_id)
+
             # Handle pings
             if request.method == 'ping':
                 return self._create_success_response({}, request.id, session_id)

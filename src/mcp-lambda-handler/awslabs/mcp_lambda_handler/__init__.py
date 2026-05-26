@@ -17,3 +17,4 @@
 __version__ = '0.1.14'
 
 from .mcp_lambda_handler import MCPLambdaHandler
+from .durable import task_tool, create_durable_handler
